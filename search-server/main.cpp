@@ -8,6 +8,7 @@
 #include <vector>
 #include <tuple>
 #include <sstream>
+#include <numeric>
 using namespace std;
 
 /* Подставьте вашу реализацию класса SearchServer сюда */
@@ -428,7 +429,7 @@ void TestExcludesDocumentWithMinusWord(){
 }
 
 
-void TestingRelevance(){
+void TestRelevance(){
     const int doc_id_1 = 1,
               doc_id_2 = 2,
               doc_id_3 = 3;
@@ -473,11 +474,91 @@ void TestingRelevance(){
 
 }
 
+//Тестирование вычисления рейтинга документов
+void TestComputeRating(){
+    const int doc_id_1 = 1;
+    const string content_1 = "grey cat"s;
+    const vector<int> ratings_1 = {3, 1, 9};
+
+    int rating = accumulate(ratings_1.begin(), ratings_1.end(), 0) / static_cast<int>(ratings_1.size());
+
+    SearchServer server;
+    server.AddDocument(doc_id_1, content_1, DocumentStatus::ACTUAL, ratings_1);
+    vector<Document> doc = server.FindTopDocuments("grey");
+    ASSERT_EQUAL(doc[0].rating, rating);
+}
+
+//Тестирование фильтрация результатов поиска с использованием предиката
+void TestFilteringResults(){
+
+    const int doc_id_1 = 1,
+            doc_id_2 = 2,
+            doc_id_3 = 3,
+            doc_id_4 = 4;
+  const string content_1 = "grey cat"s,
+               content_2 = "grey dog"s,
+               content_3 = "grey pig",
+               content_4 = "grey frog";
+  const vector<int> ratings_1 = {0, 1, 2},
+                    ratings_2 = {1, 2, 3},
+                    ratings_3 = {2, 3, 4},
+                    ratings_4 = {3, 4, 5};
+  SearchServer server;
+  server.AddDocument(doc_id_1, content_1, DocumentStatus::ACTUAL, ratings_1);
+  server.AddDocument(doc_id_2, content_2, DocumentStatus::BANNED, ratings_2);
+  server.AddDocument(doc_id_3, content_3, DocumentStatus::ACTUAL, ratings_3);
+  server.AddDocument(doc_id_4, content_4, DocumentStatus::ACTUAL, ratings_4);
+
+    for (const Document& document : server.FindTopDocuments("grey"s,
+                        [](int document_id, DocumentStatus status, int rating) {
+                            return document_id % 2 == 0;
+                        })) {
+            ASSERT(document.id % 2 == 0);
+    }
+
+    for (const Document& document : server.FindTopDocuments("grey"s,
+                        [](int document_id, DocumentStatus status, int rating) {
+                            return rating > 2;
+                        })) {
+            ASSERT(document.rating > 2);
+    }
+
+    for (const Document& document : server.FindTopDocuments("grey"s,
+                        [](int document_id, DocumentStatus status, int rating) {
+                            return status == DocumentStatus::BANNED;
+                        })) {
+            ASSERT_EQUAL(document.id, doc_id_2);
+    }
+}
+
+//Тестирование поиска документов с заданным статусом
+void TestSearchWithStatus(){
+
+    const int doc_id_1 = 1,
+            doc_id_2 = 2,
+            doc_id_3 = 3;
+  const string content_1 = "grey cat"s,
+               content_2 = "grey dog"s,
+               content_3 = "grey pig";
+  const vector<int> ratings_1 = {0, 1, 2},
+                    ratings_2 = {1, 2, 3},
+                    ratings_3 = {2, 3, 4};
+  SearchServer server;
+  server.AddDocument(doc_id_1, content_1, DocumentStatus::ACTUAL, ratings_1);
+  server.AddDocument(doc_id_2, content_2, DocumentStatus::BANNED, ratings_2);
+  server.AddDocument(doc_id_3, content_3, DocumentStatus::ACTUAL, ratings_3);
+
+  ASSERT_EQUAL(server.FindTopDocuments("grey", DocumentStatus::BANNED)[0].id, doc_id_2);
+}
+
 // Функция TestSearchServer является точкой входа для запуска тестов
 void TestSearchServer() {
     RUN_TEST(TestExcludeStopWordsFromAddedDocumentContent);
     RUN_TEST(TestExcludesDocumentWithMinusWord);
-    RUN_TEST(TestingRelevance);
+    RUN_TEST(TestRelevance);
+    RUN_TEST(TestComputeRating);
+    RUN_TEST(TestFilteringResults);
+    RUN_TEST(TestSearchWithStatus);
 }
 
 // --------- Окончание модульных тестов поисковой системы -----------
@@ -487,3 +568,4 @@ int main() {
     // Если вы видите эту строку, значит все тесты прошли успешно
     cout << "Search server testing finished"s << endl;
 }
+
