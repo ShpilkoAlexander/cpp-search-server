@@ -187,7 +187,7 @@ private:
     QueryWord ParseQueryWord(string text) const {
         bool is_minus = false;
         // Word shouldn't be empty
-        if(text.empty()) {
+        if (text.empty()) {
             return {};
         }
 
@@ -286,8 +286,8 @@ template <typename El>
 ostream& operator<< (ostream& output, vector<El> elements) {
     bool isFirst = true;
     output << "[";
-    for(const auto& element : elements) {
-        if(isFirst) {
+    for (const auto& element : elements) {
+        if (isFirst) {
             output << element;
             isFirst = false;
             continue;
@@ -303,8 +303,8 @@ template <typename El>
 ostream& operator<< (ostream& output, set<El> elements) {
     bool isFirst = true;
     output << "{";
-    for(const auto& element : elements) {
-        if(isFirst) {
+    for (const auto& element : elements) {
+        if (isFirst) {
             output << element;
             isFirst = false;
             continue;
@@ -320,8 +320,8 @@ template <typename Key, typename Value>
 ostream& operator<< (ostream& output, map<Key, Value> elements) {
     bool isFirst = true;
     output << "{";
-    for(const auto& [key, value] : elements) {
-        if(isFirst) {
+    for (const auto& [key, value] : elements) {
+        if (isFirst) {
             output << key << ": " << value;
             isFirst = false;
             continue;
@@ -357,10 +357,10 @@ void Assert(bool value, const string& str_func,
             const string& file, const string& function,
             const unsigned line,
             const string& hint) {
-    if(!value) {
+    if (!value) {
         cout << file <<"("s << line << "): "s << function << ": "s;
         cout << "ASSERT(" << str_func << ") failed."s;
-        if(!hint.empty()) {
+        if (!hint.empty()) {
             cout << " Hint: "s << hint;
         }
         cout << endl;
@@ -386,24 +386,32 @@ void RunTestImpl(const T& func, const string& str_func) {
 
 // -------- Начало модульных тестов поисковой системы ----------
 
+struct DocumentEntry {
+    int id;
+    string content;
+    vector<int> ratings;
+    DocumentStatus status = DocumentStatus::ACTUAL;
+};
+
 // Тест проверяет, что поисковая система исключает стоп-слова при добавлении документов
 void TestExcludeStopWordsFromAddedDocumentContent() {
-    const int doc_id = 42;
-    const string content = "cat in the city"s;
-    const vector<int> ratings = {1, 2, 3};
+    DocumentEntry document;
+    document.id = 42;
+    document.content = "cat in the city"s;
+    document.ratings = {1, 2, 3};
     {
         SearchServer server;
-        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        server.AddDocument(document.id, document.content, document.status, document.ratings);
         const auto found_docs = server.FindTopDocuments("in"s);
         ASSERT_EQUAL(found_docs.size(), 1u);
         const Document& doc0 = found_docs[0];
-        ASSERT_EQUAL(doc0.id, doc_id);
+        ASSERT_EQUAL(doc0.id, document.id);
     }
 
     {
         SearchServer server;
         server.SetStopWords("in the"s);
-        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+        server.AddDocument(document.id, document.content, document.status, document.ratings);
         ASSERT_HINT(server.FindTopDocuments("in"s).empty(), "Stop words must be excluded from documents"s);
     }
 }
@@ -413,29 +421,29 @@ void TestExcludeStopWordsFromAddedDocumentContent() {
 */
 //Тестирование исключения документов с минус словами
 void TestExcludesDocumentWithMinusWord() {
-    const int doc_id = 42;
-    const string content = "grey cat with collar in the city"s;
-    const vector<int> ratings = {1, 2, 3};
+    DocumentEntry document;
+    document.id = 42;
+    document.content = "grey cat with collar in the city"s;
+    document.ratings = {1, 2, 3};
 
-    {
-        SearchServer server;
-        server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
-        ASSERT(server.FindTopDocuments("cat"s).size() == 1);
-        ASSERT(server.FindTopDocuments("cat -in"s).empty());
-    }
+    SearchServer server;
+    server.AddDocument(document.id, document.content, document.status, document.ratings);
+    ASSERT_EQUAL(server.FindTopDocuments("cat"s).size(), 1);
+    ASSERT(server.FindTopDocuments("cat -in"s).empty());
 }
 
 //Тестирование того, что при Матчинге возврящется пустой вектор слов, если есть минус слово
 void TestSearchWordWithMinusWord() {
-    const int doc_id = 42;
-    const string content = "grey cat with collar in the city"s;
-    const vector<int> ratings = {1, 2, 3};
+    DocumentEntry document;
+    document.id = 42;
+    document.content = "grey cat with collar in the city"s;
+    document.ratings = {1, 2, 3};
 
     SearchServer server;
-    server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+    server.AddDocument(document.id, document.content, document.status, document.ratings);
     {
         const auto [match_word, document_status] = server.MatchDocument("cat dog city"s, 42);
-        ASSERT(match_word.size() == 2);
+        ASSERT_EQUAL(match_word.size(), 2);
     }
     {
         const auto [match_word, document_status] = server.MatchDocument("cat dog city -in"s, 42);
@@ -443,46 +451,66 @@ void TestSearchWordWithMinusWord() {
     }
 }
 
-//Добавление нескольких документов;
-void AddDocuments(const vector<int>& doc_id, const vector<string>& content, const vector<vector<int>>& ratings, SearchServer& server) {
-    for(size_t i = 0; i < doc_id.size(); i++) {
-        server.AddDocument(doc_id[i], content[i], DocumentStatus::ACTUAL, ratings[i]);
+
+//Создание нескольких документов
+vector<DocumentEntry> CreateDocumentsEntry(const vector<int>& doc_ids, const vector<string>& doc_contents,
+                                           const vector<vector<int>>& doc_ratings) {
+    vector<DocumentEntry> documents;
+    for (size_t i = 0; i < doc_ids.size(); i++) {
+        DocumentEntry document;
+        document.id = doc_ids[i];
+        document.content = doc_contents[i];
+        document.ratings = doc_ratings[i];
+        documents.push_back(document);
+    }
+
+    return documents;
+}
+
+//Добавление нескольких документов
+void AddDocuments(const vector<DocumentEntry>& documents, SearchServer& server) {
+    for (size_t i = 0; i < documents.size(); i++) {
+        server.AddDocument(documents[i].id, documents[i].content, documents[i].status, documents[i].ratings);
     }
 }
 
 // Тестирование сортировки по релевантности
 void TestSortingByRelevance() {
-    const vector<int> doc_id {1, 2, 3};
-    const vector<string> content {"grey cat with collar in the city"s,
+
+
+    const vector<int> doc_ids {1, 2, 3};
+    const vector<string> doc_contents {"grey cat with collar in the city"s,
                                   "grey dog with in the town"s,
                                   "black pig with collar village"s
                                  };
-    const vector<vector<int>> ratings {{1, 2, 3},
+    const vector<vector<int>> doc_ratings {{1, 2, 3},
                                        {2, 5, 3},
                                        {1, 6, 8}
                                       };
+    vector<DocumentEntry> documents = CreateDocumentsEntry(doc_ids, doc_contents, doc_ratings);
     SearchServer server;
-    AddDocuments(doc_id, content, ratings, server);
+    AddDocuments(documents, server);
 
     vector<Document> finded_documents = server.FindTopDocuments("grey dog collar"s);
-    for(size_t i = 1; i < finded_documents.size(); i++) {
+    for (size_t i = 1; i < finded_documents.size(); i++) {
         ASSERT(finded_documents[i-1].relevance >= finded_documents[i].relevance);
     }
 }
 
     // Тестирование вычисления релевантности
 void TestComputeRelevance() {
-    const vector<int> doc_id {1, 2, 3};
-    const vector<string> content {"white cat fashionable collar"s,
+    const vector<int> doc_ids {1, 2, 3};
+    const vector<string> doc_contents {"white cat fashionable collar"s,
                                   "fluffy cat fluffy tail"s,
                                   "groomed dog expressive eyes"s
                                  };
-    const vector<vector<int>> ratings {{1, 2, 3},
+    const vector<vector<int>> doc_ratings {{1, 2, 3},
                                        {2, 5, 3},
                                        {1, 6, 8}
                                       };
+    vector<DocumentEntry> documents = CreateDocumentsEntry(doc_ids, doc_contents, doc_ratings);
     SearchServer server;
-    AddDocuments(doc_id, content, ratings, server);
+    AddDocuments(documents, server);
 
     vector<double> relevance_doc;
     relevance_doc.push_back(log(server.GetDocumentCount() * 1.0 / 2) * (1.0 / 4));
@@ -496,40 +524,43 @@ void TestComputeRelevance() {
 
     vector<Document> finded_documents = server.FindTopDocuments("fluffy groomed cat");
     const double EPSILON = 1e-6;
-    for(size_t i = 0; i < relevance_doc.size(); i++) {
+    for (size_t i = 0; i < relevance_doc.size(); i++) {
         ASSERT(abs(finded_documents[i].relevance - relevance_doc[i]) < EPSILON);
     }
 }
 
 //Тестирование вычисления рейтинга документов
 void TestComputeRating() {
-    const int doc_id = 1;
-    const string content = "grey cat"s;
-    const vector<int> ratings = {3, 1, 9};
+    DocumentEntry document;
+    document.id = 1;
+    document.content = "grey cat"s;
+    document.ratings = {3, 1, 9};
 
-    int rating = accumulate(ratings.begin(), ratings.end(), 0) / static_cast<int>(ratings.size());
+    int rating = accumulate(document.ratings.begin(), document.ratings.end(), 0) / static_cast<int>(document.ratings.size());
 
     SearchServer server;
-    server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+    server.AddDocument(document.id, document.content, document.status, document.ratings);
     vector<Document> doc = server.FindTopDocuments("grey");
     ASSERT_EQUAL(doc[0].rating, rating);
 }
 
 //Тестирование фильтрация результатов поиска с использованием предиката
 void TestFilteringResults() {
-    const vector<int> doc_id {1, 2, 3, 4};
-    const vector<string> content {"grey cat"s,
+    const vector<int> doc_ids {1, 2, 3, 4};
+    const vector<string> doc_contents {"grey cat"s,
                                   "grey dog"s,
                                   "grey pig",
                                   "grey frog"
                                  };
-    const vector<vector<int>> ratings {{0, 1, 2},
+    const vector<vector<int>> doc_ratings {{0, 1, 2},
                                        {1, 2, 3},
                                        {2, 3, 4},
                                        {3, 4, 5}
                                       };
+    vector<DocumentEntry> documents = CreateDocumentsEntry(doc_ids, doc_contents, doc_ratings);
+    documents[2].status = DocumentStatus::BANNED; // Задаём отличный от других статус для проверки
     SearchServer server;
-    AddDocuments(doc_id, content, ratings, server);
+    AddDocuments(documents, server);
 
     for (const Document& document : server.FindTopDocuments("grey"s,
                         [](int document_id, DocumentStatus status, int rating) {
@@ -549,23 +580,24 @@ void TestFilteringResults() {
                         [](int document_id, DocumentStatus status, int rating) {
                             return status == DocumentStatus::BANNED;
                         })) {
-        ASSERT_EQUAL(document.id, doc_id[2]);
+        ASSERT_EQUAL(document.id, documents[2].id);
     }
 }
 
 //Тестирование поиска документов с заданным статусом
 void TestSearchWithStatus() {
-    const vector<int> doc_id {1, 2, 3};
-    const vector<string> content {"grey cat"s,
+    const vector<int> doc_ids {1, 2, 3};
+    const vector<string> doc_contents {"grey cat"s,
                                   "grey dog"s,
                                   "grey pig",
                                  };
-    const vector<vector<int>> ratings {{0, 1, 2},
+    const vector<vector<int>> doc_ratings {{0, 1, 2},
                                        {1, 2, 3},
                                        {2, 3, 4},
                                       };
+    vector<DocumentEntry> documents = CreateDocumentsEntry(doc_ids, doc_contents, doc_ratings);
     SearchServer server;
-    AddDocuments(doc_id, content, ratings, server);
+    AddDocuments(documents, server);
     int id_banned_doc = 4;
     server.AddDocument(id_banned_doc, "grey frog", DocumentStatus::BANNED, {1, 2, 3});
 
