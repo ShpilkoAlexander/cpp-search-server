@@ -10,6 +10,7 @@
 using namespace std;
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
+const double EPSILON = 1e-6; //точность сравнения релевантности
 
 string ReadLine() {
     string s;
@@ -48,14 +49,14 @@ struct Document {
     Document() = default;
 
     Document(int id, double relevance, int rating)
-        : id(id)
-        , relevance(relevance)
-        , rating(rating) {
+        : id_(id)
+        , relevance_(relevance)
+        , rating_(rating) {
     }
 
-    int id = 0;
-    double relevance = 0.0;
-    int rating = 0;
+    int id_ = 0;
+    double relevance_ = 0.0;
+    int rating_ = 0;
 };
 
 template <typename StringContainer>
@@ -81,22 +82,26 @@ public:
     template <typename StringContainer>
     explicit SearchServer(const StringContainer& stop_words)
         : stop_words_(MakeUniqueNonEmptyStrings(stop_words)) {
-        for (const string& word : stop_words_) {
-            if (!IsValidWord(word)) {
-                throw invalid_argument("invalid char in stop word");
-            }
+
+        //Проверка на отсутствие специальных символов в стоп словах
+        if (!IsValidText(stop_words_)) {
+            throw invalid_argument("invalid char in stop word");
         }
     }
 
-
     explicit SearchServer(const string& stop_words_text)
-        : SearchServer(SplitIntoWords(stop_words_text))  // Invoke delegating constructor from string container
-    {
+        : SearchServer(SplitIntoWords(stop_words_text)) {
     }
 
     void AddDocument(int document_id, const string& document, DocumentStatus status,
                                    const vector<int>& ratings) {
-        CheckValidId(document_id);
+        if (document_id < 0){
+            throw invalid_argument("Invalid id : negative id");
+        }
+        if (documents_.count(document_id)){
+            throw invalid_argument("Invalid id : document with this id already exists");
+        }
+
         try {
             vector<string> words = SplitIntoWordsNoStop(document);
             const double inv_word_count = 1.0 / words.size();
@@ -106,8 +111,8 @@ public:
             documents_.emplace(document_id, DocumentData{ComputeAverageRating(ratings), status});
             document_ids_.push_back(document_id);
 
-            } catch (const invalid_argument&) {
-                throw invalid_argument("invalid text in document when added");
+        } catch (const invalid_argument&) {
+            throw invalid_argument("invalid text in document when added");
         }
     }
 
@@ -116,13 +121,15 @@ public:
         Query query = ParseQuery(raw_query);
         auto matched_documents = FindAllDocuments(query, document_predicate);
 
-        sort(matched_documents.begin(), matched_documents.end(), [](const Document& lhs, const Document& rhs) {
-            if (abs(lhs.relevance - rhs.relevance) < 1e-6) {
-                return lhs.rating > rhs.rating;
+
+        sort(matched_documents.begin(), matched_documents.end(), [EPSILON](const Document& lhs, const Document& rhs) {
+            if (abs(lhs.relevance_ - rhs.relevance_) < EPSILON) {
+                return lhs.rating_ > rhs.rating_;
             } else {
-                return lhs.relevance > rhs.relevance;
+                return lhs.relevance_ > rhs.relevance_;
             }
         });
+
         if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT) {
             matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
         }
@@ -147,10 +154,10 @@ public:
     }
 
     int GetDocumentId(int index) const {
-        if (index < 0 || index >= GetDocumentCount()){
+        if (index < 0){
             throw out_of_range("Invalid index");
         }
-        return document_ids_.at(static_cast<unsigned long>(index));
+        return document_ids_.at(static_cast<size_t>(index));
     }
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query, int document_id) const {
@@ -200,16 +207,26 @@ private:
         });
     }
 
+    template <typename Container>
+    static bool IsValidText(const Container& text){
+        return all_of(text.begin(), text.end(), IsValidWord);
+    }
+
     vector<string> SplitIntoWordsNoStop(const string& text) const {
         vector<string> words;
+        vector<string> splited_words = SplitIntoWords(text);
+
+        //Проверка на отсутсвие специальных символов
+        if (!IsValidText(splited_words)){
+            throw invalid_argument("invalid char");
+        }
+
         for (const string& word : SplitIntoWords(text)) {
-            if (!IsValidWord(word)) {
-                throw invalid_argument("invalid char");
-            }
             if (!IsStopWord(word)) {
                 words.push_back(word);
             }
         }
+
         return words;
     }
 
@@ -231,7 +248,7 @@ private:
     };
 
     QueryWord ParseQueryWord(string text) const {
-        if (text.empty() || !IsValidWord(text) || text[text.size() - 1] == '-') {
+        if (text.empty() || !IsValidWord(text) || text.back() == '-') {
             throw invalid_argument("Invalid Query");
         }
         bool is_minus = false;
@@ -272,12 +289,6 @@ private:
         return log(GetDocumentCount() * 1.0 / word_to_document_freqs_.at(word).size());
     }
 
-    void CheckValidId(int id){
-        if (id < 0 || documents_.count(id)){
-            throw invalid_argument("Invalid id");
-        }
-    }
-
     template <typename DocumentPredicate>
     vector<Document> FindAllDocuments(const Query& query, DocumentPredicate document_predicate) const {
         map<int, double> document_to_relevance;
@@ -316,9 +327,9 @@ private:
 
 void PrintDocument(const Document& document) {
     cout << "{ "s
-         << "document_id = "s << document.id << ", "s
-         << "relevance = "s << document.relevance << ", "s
-         << "rating = "s << document.rating << " }"s << endl;
+         << "document_id = "s << document.id_ << ", "s
+         << "relevance = "s << document.relevance_ << ", "s
+         << "rating = "s << document.rating_ << " }"s << endl;
 }
 
 void PrintMatchDocumentResult(int document_id, const vector<string>& words, DocumentStatus status) {
