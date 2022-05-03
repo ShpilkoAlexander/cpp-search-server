@@ -1,10 +1,9 @@
-//Вставьте сюда своё решение из урока «‎Очередь запросов».‎
 #pragma once
 #include <sstream>
 
 struct Document {
     Document();
-    
+
     Document(int id, double relevance, int rating) ;
 
     int id = 0;

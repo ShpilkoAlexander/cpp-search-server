@@ -1,4 +1,3 @@
-//Вставьте сюда своё решение из урока «‎Очередь запросо
 #include "document.h"
 #include <iostream>
 #include <string>
