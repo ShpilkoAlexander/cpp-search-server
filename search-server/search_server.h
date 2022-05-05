@@ -85,7 +85,6 @@ private:
     template <typename DocumentPredicate>
     std::vector<Document> FindAllDocuments(const Query& query, DocumentPredicate document_predicate) const ;
 
-    friend void RemoveDuplicates(SearchServer& search_server);
 };
 
 template <typename StringContainer>
