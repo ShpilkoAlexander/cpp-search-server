@@ -11,7 +11,7 @@ struct Document {
     int rating = 0;
 };
 
-void PrintDocument(const Document& document) ;
+//void PrintDocument(const Document& document) ;
 
 enum class DocumentStatus {
     ACTUAL,

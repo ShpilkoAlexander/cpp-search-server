@@ -14,12 +14,12 @@ Document::Document(int id, double relevance, int rating)
 
 
 
-void PrintDocument(const Document& document) {
-    std::cout << "{ "
-         << "document_id = " << document.id << ", "
-         << "relevance = " << document.relevance << ", "
-         << "rating = " << document.rating << " }" << std::endl;
-}
+//void PrintDocument(const Document& document) {
+//    std::cout << "{ "
+//         << "document_id = " << document.id << ", "
+//         << "relevance = " << document.relevance << ", "
+//         << "rating = " << document.rating << " }" << std::endl;
+//}
 
 std::ostream& operator<<(std::ostream& out, const Document& document) {
     out << "{ "
