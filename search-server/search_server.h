@@ -210,8 +210,7 @@ std::vector<Document> SearchServer::FindTopDocuments(const ExecutionPolicy& poli
     const Query query = ParseQuery(policy, raw_query);
     std::vector<Document> matched_documents = FindAllDocuments(policy, query, document_predicate);
     std::sort(policy, matched_documents.begin(), matched_documents.end(), [](const Document& lhs, const Document& rhs) {
-                  if (std::abs(lhs.relevance - rhs.relevance) <
-                      EPSILON) {
+                  if (std::abs(lhs.relevance - rhs.relevance) < EPSILON) {
                       return lhs.rating > rhs.rating;
                   } else {
                       return lhs.relevance > rhs.relevance;
@@ -358,7 +357,7 @@ SearchServer::FindAllDocuments(
 
 template <typename Policy>
 void SearchServer::RemoveDocument(Policy policy, const int document_id){
-    if (!document_ids_.count(document_id)) {
+    if (document_ids_.find(document_id) != document_ids_.end()) {
              return;
     }
 

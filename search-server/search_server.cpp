@@ -164,58 +164,30 @@ SearchServer::QueryWord SearchServer::ParseQueryWord(std::string_view word) cons
     return {word, is_minus, SearchServer::IsStopWord(word)};
 }
 
-
-
-//SearchServer::Query SearchServer::ParseQuery(std::string_view text, bool skip_sort) const {
-//    Query result;
-//    for (std::string_view word : SplitIntoWords(text)) {
-//        const auto query_word = ParseQueryWord(word);
-//        if (!query_word.is_stop) {
-//            if (query_word.is_minus) {
-//                result.minus_words.push_back(query_word.data);
-//            } else {
-//                result.plus_words.push_back(query_word.data);
-//            }
-//        }
-//    }
-//    if (!skip_sort) {
-//        for (auto* words : {&result.plus_words, &result.minus_words}) {
-//            std::sort(words->begin(), words->end());
-//            words->erase(unique(words->begin(), words->end()), words->end());
-//        }
-//    }
-//    return result;
-//}
-
-
-
-
 double SearchServer::ComputeWordInverseDocumentFreq(std::string_view word) const {
     return std::log(SearchServer::GetDocumentCount() * 1.0 / SearchServer::word_to_document_freqs_.at(std::string(word)).size());
 }
 
-
 std::set<int>::iterator SearchServer::begin() {
     return document_ids_.begin();
 }
-
 
 std::set<int>::iterator SearchServer::end() {
     return document_ids_.end();
 }
 
 const std::map<std::string_view, double>& SearchServer::GetWordFrequencies(int document_id) const {
-    static std::map<std::string_view, double> result;
-    if (documents_.count(document_id) > 0) {
-        result = document_ids_with_word_.at(document_id);
-    } else {
-        result.clear();
+    static const std::map<std::string_view, double> result;
+    if (documents_.find(document_id) != documents_.end()) {
+        return document_ids_with_word_.at(document_id);
     }
+
     return result;
 }
 
 void SearchServer::RemoveDocument(int document_id) {
-    if (!document_ids_.count(document_id)) {
+
+    if (document_ids_.find(document_id) != document_ids_.end()) {
              return;
     }
 
