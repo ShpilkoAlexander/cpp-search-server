@@ -111,11 +111,6 @@ private:
 
     QueryWord ParseQueryWord(std::string_view text) const ;
 
-//    struct Query {
-//        std::set<std::string> plus_words;
-//        std::set<std::string> minus_words;
-//    };
-
     struct Query {
         std::vector<std::string_view> plus_words;
         std::vector<std::string_view> minus_words;
@@ -123,8 +118,6 @@ private:
 
     template <typename ExecutionPolicy>
     Query ParseQuery(const ExecutionPolicy& policy, const std::string_view text, const bool make_unique = true) const;
-
-//    QueryVector ParseQueryVector(const std::string& text) const ;
 
     double ComputeWordInverseDocumentFreq(const std::string_view word) const ;
 
